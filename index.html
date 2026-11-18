@@ -1,0 +1,1917 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Smart Seva Test Lab</title>
+<style>
+/* layout concept: single-page app, top bar + one full-width stage; stage content
+   switches between profile-picker / task-runner / setup-editor / results-dashboard */
+:root{
+  /* light, white + green — always-on, not OS-dependent */
+  --bg:#f5faf6; --bg-elev:#ffffff; --bg-card:#ffffff;
+  --fg:#16281e; --fg-dim:#4d6b58; --fg-faint:#8fa799;
+  --accent:#1f9d55; --accent-2:#2fbf6e; --accent-dim:#d9f2e3;
+  --good:#1f8a4c; --bad:#c43f35; --border:rgba(31,157,85,.22);
+  --shadow:0 8px 24px rgba(20,60,40,.10);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f5faf6; --bg-elev:#ffffff; --bg-card:#ffffff;
+    --fg:#16281e; --fg-dim:#4d6b58; --fg-faint:#8fa799;
+    --accent:#1f9d55; --accent-2:#2fbf6e; --accent-dim:#d9f2e3;
+    --good:#1f8a4c; --bad:#c43f35; --border:rgba(31,157,85,.22);
+    --shadow:0 8px 24px rgba(20,60,40,.10);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f5faf6; --bg-elev:#ffffff; --bg-card:#ffffff;
+  --fg:#16281e; --fg-dim:#4d6b58; --fg-faint:#8fa799;
+  --accent:#1f9d55; --accent-2:#2fbf6e; --accent-dim:#d9f2e3;
+  --good:#1f8a4c; --bad:#c43f35; --border:rgba(31,157,85,.22);
+  --shadow:0 8px 24px rgba(20,60,40,.10);
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:Arial,Helvetica,sans-serif;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));}
+h1,h2,h3{font-weight:700;text-wrap:balance;margin:0 0 .4em}
+h1{font-size:1.3rem;letter-spacing:.2px}
+h2{font-size:1.05rem;color:var(--accent-2)}
+h3{font-size:.92rem;color:var(--fg-dim);text-transform:uppercase;letter-spacing:.6px}
+p{line-height:1.55;color:var(--fg-dim)}
+a{color:var(--accent-2)}
+.wrap{max-width:980px;margin:0 auto;padding-block:18px 60px}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);
+  border-bottom:1px solid var(--border);padding-block:10px;margin-bottom:22px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);
+  z-index:10;background:var(--bg)}
+.topbar-inner{max-width:980px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-width:0}
+.brand{font-weight:800;font-size:1.05rem;white-space:nowrap}
+.brand span{color:var(--accent)}
+.nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.nav a{font-size:.8rem;text-decoration:none;color:var(--fg-dim);padding:6px 10px;border-radius:7px;border:1px solid transparent}
+.nav a.active,.nav a:hover{color:var(--fg);border-color:var(--border);background:var(--bg-elev)}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+.card + .card{margin-top:14px}
+.btn{display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:#0b2817;border:none;
+  padding:10px 18px;border-radius:9px;font-weight:700;font-size:.88rem;cursor:pointer;font-family:inherit}
+.btn:hover{background:var(--accent-2)}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--border)}
+.btn.ghost:hover{border-color:var(--accent)}
+.btn.sm{padding:6px 12px;font-size:.78rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;gap:14px}
+.grid.profiles{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+input[type=text],input[type=number],textarea,select{
+  width:100%;background:var(--bg-elev);color:var(--fg);border:1px solid var(--border);
+  border-radius:8px;padding:9px 11px;font-family:inherit;font-size:.86rem}
+textarea{resize:vertical;min-height:70px}
+label{font-size:.76rem;color:var(--fg-faint);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+.field{margin-bottom:12px;min-width:0}
+.pill{display:inline-block;font-size:.72rem;padding:2px 9px;border-radius:99px;background:var(--accent-dim);color:var(--accent-2);font-weight:700}
+.muted{color:var(--fg-faint);font-size:.8rem}
+.stage-img-wrap{position:relative;border-radius:10px;overflow:auto;max-height:72vh;border:1px solid var(--border);background:#000;touch-action:none}
+.stage-img-wrap img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
+.overlay{position:absolute;inset:0;pointer-events:none}
+.hotbox{position:absolute;border:2px dashed var(--accent);background:rgba(31,157,85,.08);border-radius:4px}
+.draw-surface{position:absolute;inset:0;cursor:crosshair}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--border)}
+th{color:var(--fg-faint);font-weight:700;text-transform:uppercase;font-size:.68rem;letter-spacing:.4px}
+td{font-variant-numeric:tabular-nums}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--bg-elev);border:1px solid var(--border);border-radius:10px;padding:14px}
+.stat .num{font-size:1.5rem;font-weight:800;color:var(--accent-2);font-variant-numeric:tabular-nums}
+.stat .lbl{font-size:.72rem;color:var(--fg-faint);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:.8rem}
+.bar-row .name{width:160px;flex-shrink:0;color:var(--fg-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;background:var(--bg-elev);border-radius:5px;height:10px;overflow:hidden;min-width:40px}
+.bar-fill{height:100%;background:var(--accent)}
+.likert{display:flex;gap:6px}
+.likert button{flex:1;padding:12px 0;border-radius:8px;border:1px solid var(--border);background:var(--bg-elev);color:var(--fg);font-weight:700;cursor:pointer;font-family:inherit}
+.likert button.sel{background:var(--accent);color:#0b2817;border-color:var(--accent)}
+.center{text-align:center;padding:40px 10px}
+.hidden{display:none!important}
+.screen-thumb{width:100%;border-radius:8px;border:1px solid var(--border);display:block}
+.taskline{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--bg-elev)}
+.taskline .meta{flex:1;min-width:0}
+.badge-end{background:var(--good);color:#06240f;font-size:.65rem;padding:2px 7px;border-radius:5px;font-weight:800}
+.badge-drag{background:var(--accent-2);color:#0b2817;font-size:.65rem;padding:2px 7px;border-radius:5px;font-weight:800}
+.flexsplit{display:flex;gap:18px;flex-wrap:wrap}
+.flexsplit > *{flex:1;min-width:260px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--bg-card);
+  border:1px solid var(--accent);border-radius:10px;padding:10px 18px;font-size:.84rem;box-shadow:var(--shadow);z-index:50}
+.notice{border:1px solid var(--accent);background:var(--accent-dim);border-radius:10px;padding:12px 14px;font-size:.84rem;margin-bottom:14px;color:var(--fg)}
+
+/* ---- Embedded real-export flow iframes (Service Hub / Chief Officer / etc, from Figma code export) ---- */
+.iframe-outer{position:relative;width:100%;overflow:hidden}
+.iframe-scaler{position:relative}
+.iframe-scaler iframe{border:0;display:block;background:#0c0e12}
+/* full-screen task mode: participant should see only the embedded portal, no Test Lab chrome */
+body.task-fullscreen{overflow:hidden}
+body.task-fullscreen .topbar,
+body.task-fullscreen body::before{display:none}
+body.task-fullscreen .wrap{max-width:none;margin:0;padding:0}
+/* Two-part stage: a task-instructions banner pinned at the top, and a scrollable area below it that
+   holds the embedded screen. The screen fills the available width; if it ends up taller than the
+   viewport, that lower area scrolls (the screen itself is never squeezed to force it to fit). */
+body.task-fullscreen .task-fs-stage{position:fixed;inset:0;background:#0c0e12;display:flex;flex-direction:column;z-index:5}
+.task-fs-banner{flex:0 0 auto;padding:14px 20px;background:var(--bg-card);border-bottom:1px solid var(--border);
+  display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+.task-fs-banner .pill{flex:0 0 auto}
+.task-fs-banner .task-fs-text{flex:1 1 320px;font-size:.92rem;color:var(--fg)}
+.task-fs-banner .task-fs-finish{flex:0 0 auto;background:var(--accent);color:#0b2817;font-weight:700}
+/* The live task screen is rendered at its one real, fixed Figma canvas size (1440x1024 desktop,
+   390x844 mobile) and the whole thing is scaled down uniformly with a CSS transform to fit whatever
+   space is actually available — never reflowed, never cropped, never an outer scrollbar. Any panel
+   the design itself marked scrollable (a complaints table, a ticket sidecar body) still scrolls
+   internally, since the screen renders at its one true native size either way. */
+.task-fs-body{flex:1 1 auto;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.task-fs-outer{position:relative}
+.task-fs-scaler{transform-origin:top left}
+.task-fs-scaler > iframe{display:block;border:0;background:#0c0e12}
+</style>
+
+<div class="topbar"><div class="topbar-inner">
+  <div class="brand">Smart <span>Seva</span> Test Lab</div>
+  <nav class="nav" id="nav"></nav>
+</div></div>
+
+<div class="wrap" id="app"><div class="center muted">Loading…</div></div>
+<div id="toastHost"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- small utils ---------- */
+const $ = s => document.querySelector(s);
+const el = (tag, attrs, ...kids) => {
+  const n = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    const v = attrs[k];
+    if (v === undefined || v === null) continue; // omit the attribute entirely rather than stringifying "undefined"/"null"
+    if (k === "class") n.className = v;
+    else if (k === "html") n.innerHTML = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) n.append(k.nodeType ? k : document.createTextNode(String(k)));
+  return n;
+};
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now());
+const now = () => Date.now();
+const fmtSec = ms => (ms/1000).toFixed(1) + "s";
+const clamp01 = v => Math.max(0, Math.min(1, v));
+function toast(msg){
+  const t = el("div", {class:"toast"}, msg);
+  $("#toastHost").append(t);
+  setTimeout(()=>t.remove(), 3200);
+}
+function avg(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function median(arr){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length%2? s[m] : (s[m-1]+s[m])/2; }
+
+/* ---------- capabilities ---------- */
+let DB=null, USER=null, ASSETS=null, DOWNLOADS=null;
+let VIEWER = {isOwner:false, canEdit:false, canWrite:null};
+// True only when this page is actually running inside the Claude artifact viewer.
+// When this HTML is hosted elsewhere (e.g. GitHub Pages) `window.claude` doesn't exist at all,
+// so DB/USER/ASSETS/DOWNLOADS all stay null and we fall back to the passcode gate below.
+const IS_CLAUDE_RUNTIME = (typeof window.claude !== "undefined" && !!window.claude);
+// Researcher-only passcode used ONLY outside the Claude runtime (where there's no "owner" concept
+// at all). Not real security — anyone reading the page source can find it — just enough to keep
+// casual participants out of Setup/Results on a plain hosted copy. Change this before you deploy.
+const OFFLINE_ADMIN_PASSCODE = "seva-admin";
+const OFFLINE_ADMIN_KEY = "ssOfflineAdmin";
+// Results is password-protected on top of the owner/editor check above, inside Claude or out —
+// so even a signed-in collaborator with edit access on this artifact needs the password to see
+// participant data. Persisted per-browser (localStorage), so it's only asked once per device.
+const RESULTS_PASSCODE = "seva-admin";
+const RESULTS_UNLOCK_KEY = "ssResultsUnlocked";
+function resultsUnlocked(){
+  try{ return localStorage.getItem(RESULTS_UNLOCK_KEY) === "yes"; }catch(e){ return false; }
+}
+function tryResultsUnlock(code){
+  if (code === RESULTS_PASSCODE){
+    try{ localStorage.setItem(RESULTS_UNLOCK_KEY, "yes"); }catch(e){}
+    render();
+    return true;
+  }
+  toast("Wrong password.");
+  return false;
+}
+function resultsPasswordGate(){
+  const input = el("input", {type:"password", placeholder:"Results password", style:"max-width:220px"});
+  input.addEventListener("keydown", e=>{ if (e.key === "Enter") tryResultsUnlock(input.value); });
+  return el("div", {class:"card center"},
+    el("h2", null, "Results are password protected"),
+    el("p", null, "Enter the password to view participant results."),
+    el("div", {class:"row", style:"justify-content:center; gap:8px; margin-top:10px"},
+      input,
+      el("button", {class:"btn", onclick:()=>tryResultsUnlock(input.value)}, "Unlock")));
+}
+
+async function initCapabilities(){
+  try{ DB = await claude.use("db"); }catch(e){ DB=null; }
+  try{ USER = await claude.use("user"); }catch(e){ USER=null; }
+  try{ ASSETS = await claude.use("assets"); }catch(e){ ASSETS=null; }
+  try{ DOWNLOADS = await claude.use("downloads"); }catch(e){ DOWNLOADS=null; }
+  if (USER){
+    try{
+      VIEWER.isOwner = await USER.isOwner();
+      VIEWER.canEdit = await USER.canEdit();
+      VIEWER.canWrite = await USER.can("data.write");
+    }catch(e){}
+  }
+  if (!IS_CLAUDE_RUNTIME){
+    try{
+      if (localStorage.getItem(OFFLINE_ADMIN_KEY) === "yes"){ VIEWER.isOwner = true; VIEWER.canEdit = true; }
+    }catch(e){}
+  }
+}
+function tryOfflineAdminUnlock(code){
+  if (code === OFFLINE_ADMIN_PASSCODE){
+    try{ localStorage.setItem(OFFLINE_ADMIN_KEY, "yes"); }catch(e){}
+    VIEWER.isOwner = true; VIEWER.canEdit = true;
+    render();
+    return true;
+  }
+  toast("Wrong passcode.");
+  return false;
+}
+// ---------- Optional remote store for when this page runs OUTSIDE Claude (e.g. GitHub Pages) ----------
+// Fill REMOTE_STORE_URL in with a deployed Google Apps Script Web App URL (see setup notes shared with
+// the researcher) to have participant results recorded automatically — no manual JSON download/send.
+// Leave it blank to keep the download-and-send-me-the-file fallback.
+const REMOTE_STORE_URL = "https://script.google.com/macros/s/AKfycbzUfqURN8hWKCeoRnaktufWS5phpW_OLL_bWmBmoy9lWfdEuBf41zR9wCLXnzGqWdXY/exec";
+const REMOTE_STORE_SECRET = "seva-2026"; // must match the SECRET constant in the Apps Script, see setup notes
+async function remoteSave(payload){
+  if (!REMOTE_STORE_URL) return false;
+  try{
+    const res = await fetch(REMOTE_STORE_URL, {
+      method: "POST",
+      // text/plain avoids a CORS preflight that Apps Script web apps don't handle; the script still
+      // JSON.parses the raw body regardless of this header.
+      headers: {"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({secret: REMOTE_STORE_SECRET, id: payload.id, data: payload})
+    });
+    const out = await res.json();
+    return !!(out && out.ok);
+  }catch(e){ return false; }
+}
+async function remoteLoadAll(){
+  if (!REMOTE_STORE_URL) return [];
+  try{
+    const res = await fetch(REMOTE_STORE_URL + "?secret=" + encodeURIComponent(REMOTE_STORE_SECRET));
+    const out = await res.json();
+    return (out && out.ok && Array.isArray(out.sessions)) ? out.sessions : [];
+  }catch(e){ return []; }
+}
+// Only works if the deployed Apps Script also handles {action:"delete"} — older deployments of
+// AppsScript-Code.gs.txt only know how to save/list. Returns false (never throws) either way, so
+// the caller can fall back to a clear message instead of a silent no-op.
+async function remoteDeleteSession(id){
+  if (!REMOTE_STORE_URL) return false;
+  try{
+    const res = await fetch(REMOTE_STORE_URL, {
+      method: "POST",
+      headers: {"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({secret: REMOTE_STORE_SECRET, id, action:"delete"})
+    });
+    const out = await res.json();
+    return !!(out && out.ok);
+  }catch(e){ return false; }
+}
+// Deletes one participant's response, wherever it actually lives: the live Claude db, the remote
+// (Google Sheet) store, or this tab's local-only imported-sessions list. Always re-renders Results
+// afterward so the Overview stats and every table reflect the removal immediately.
+async function deleteSession(session){
+  const label = (session.participant && session.participant.name) || "this participant";
+  if (!confirm("Delete " + label + "'s response? This can't be undone.")) return;
+  if (DB && session.id && !session.__localOnly){
+    try{
+      await DB.doc("sessions/"+session.id).delete();
+      toast("Deleted.");
+      render();
+      return;
+    }catch(e){ toast("Delete failed: " + (e&&e.code||e)); return; }
+  }
+  const impIdx = importedSessions.indexOf(session);
+  if (impIdx > -1){
+    importedSessions.splice(impIdx, 1);
+    toast("Deleted.");
+    render();
+    return;
+  }
+  if (REMOTE_STORE_URL && session.id){
+    const ok = await remoteDeleteSession(session.id);
+    if (ok){ toast("Deleted."); render(); }
+    else toast("Couldn't delete — the connected remote store doesn't support deleting yet.");
+    return;
+  }
+  toast("Couldn't find where this response is stored.");
+}
+// Works everywhere (Claude artifact or any plain host) — builds the file client-side with a Blob
+// and triggers a normal browser download, so we don't depend on the Claude-only downloads capability.
+function downloadFileLocally(filename, data, mime){
+  try{
+    const blob = new Blob([data], {type: mime || "application/octet-stream"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ try{ document.body.removeChild(a); URL.revokeObjectURL(url); }catch(e){} }, 1000);
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---------- default / sample config (shown until the researcher sets real tasks) ---------- */
+function placeholderShot(label, sub){
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560">
+    <rect width="900" height="560" fill="#f5faf6"/>
+    <rect x="24" y="24" width="852" height="60" rx="8" fill="#e3f3e8"/>
+    <text x="48" y="62" fill="#1f9d55" font-family="Arial" font-size="22" font-weight="bold">${label}</text>
+    <rect x="24" y="104" width="852" height="432" rx="8" fill="#ffffff" stroke="#1f9d55" stroke-width="2" stroke-dasharray="6 6"/>
+    <text x="450" y="330" fill="#4d6b58" font-family="Arial" font-size="18" text-anchor="middle">${sub}</text>
+  </svg>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+function sampleConfig(){
+  return {
+    profiles: ["Chief Officer","Manager","Supervisor","Service Hub"],
+    tasks: [
+      {
+        id:"co-overdue-dept", profile:"Chief Officer",
+        title:"Overdue by department",
+        instructions:"You go to the portal and you see there are some tickets overdue their ETR deadline. Check which department has the most overdue tickets.",
+        kind:"iframe-nav", flowFile:"portals/co/index.html", frame:"desktop", hpSteps:1
+      },
+      {
+        id:"co-overdue-request", profile:"Chief Officer",
+        title:"Request update on an overdue ticket",
+        instructions:"Find an overdue ticket and request an update from the manager handling the ticket.",
+        kind:"iframe-nav", flowFile:"portals/co/index.html", frame:"desktop", hpSteps:2
+      },
+      {
+        id:"mgr-review-close", profile:"Manager",
+        title:"Review and close ticket",
+        instructions:"A supervisor has requested for ticket closure. Review the before and after photos and close the ticket.",
+        kind:"iframe-nav", flowFile:"portals/manager/index.html", frame:"desktop", hpSteps:1
+      },
+      {
+        id:"mgr-assign-pipeline", profile:"Manager",
+        title:"Assign Pipeline Burst (Ward 5)",
+        instructions:"Assign the ticket 'Pipeline Burst' from Ward 5 to a supervisor already working in ward 5.",
+        kind:"iframe-nav", flowFile:"portals/manager/index.html", frame:"desktop", hpSteps:1
+      },
+      {
+        id:"sup-accept", profile:"Supervisor",
+        title:"Accept new assignment",
+        instructions:"Check for any new assignments and accept if there is a new assignment.",
+        kind:"iframe-nav", flowFile:"portals/supervisor/index.html", frame:"mobile", hpSteps:2
+      },
+      {
+        id:"sup-pothole-close", profile:"Supervisor",
+        title:"Close Pothole ticket (Station Road)",
+        instructions:"You are supervising for the ticket 'Pothole' near station road. Add before and after photo and request to close ticket.",
+        kind:"iframe-nav", flowFile:"portals/supervisor/index.html", frame:"mobile", hpSteps:7
+      },
+      {
+        id:"hub-generate-ticket", profile:"Service Hub",
+        title:"Generate ticket for pothole complaint",
+        instructions:"Generate the ticket for the pothole complaint assigning it to Manager Sneha Kini of Civil department on medium priority.",
+        kind:"iframe-nav", flowFile:"portals/hub/index.html", frame:"desktop", hpSteps:1
+      },
+      {
+        id:"hub-link-duplicate", profile:"Service Hub",
+        title:"Link duplicate complaint",
+        instructions:"This pothole complaint is duplicate and a ticket has already been generated for it. Link this new complaint to the already generated ticket.",
+        kind:"iframe-nav", flowFile:"portals/hub/index.html", frame:"desktop", hpSteps:3
+      }
+    ]
+  };
+}
+
+/* Fixed per-task micro-survey (asked right after every task) */
+const PER_TASK_QUESTIONS = [
+  {id:"finished", label:"Did you finish the task?", type:"choice", options:["Yes","Some of it","No"]},
+  {id:"ease", label:"How easy was the task?", type:"scale5", lo:"Very hard", hi:"Very easy"},
+  {id:"confidence", label:"How sure are you that you did it right?", type:"scale5", lo:"Not sure", hi:"Very sure"},
+  {id:"confusing", label:"Was anything confusing or hard? Tell us.", type:"text", optional:true}
+];
+
+/* Fixed TAM questionnaire, asked once after all of a profile's tasks */
+const TAM_STATEMENTS = [
+  {id:1, text:"This platform helps me do my work faster.", positive:true},
+  {id:2, text:"This platform makes my work harder.", positive:false},
+  {id:3, text:"It is easy to learn this platform.", positive:true},
+  {id:4, text:"I need help to use this platform.", positive:false},
+  {id:5, text:"This platform is useful for my job.", positive:true},
+  {id:6, text:"This platform is not helpful for my daily tasks.", positive:false},
+  {id:7, text:"It is easy to do what I want with this platform.", positive:true},
+  {id:8, text:"This platform is confusing.", positive:false}
+];
+function scoreTam(answers){
+  // answers: {1:1-5, 2:1-5, ...}
+  const s = {};
+  TAM_STATEMENTS.forEach(q=>{
+    const a = answers[q.id];
+    if (a==null) return;
+    s[q.id] = q.positive ? (a-1) : (5-a);
+  });
+  const pu = [1,2,5,6].every(id=>s[id]!=null) ? ([1,2,5,6].reduce((sum,id)=>sum+s[id],0) * 6.25) : null;
+  const peou = [3,4,7,8].every(id=>s[id]!=null) ? ([3,4,7,8].reduce((sum,id)=>sum+s[id],0) * 6.25) : null;
+  const overall = Object.keys(s).length===8 ? (Object.values(s).reduce((a,b)=>a+b,0) * 3.125) : null;
+  return {pu, peou, overall};
+}
+
+/* Fixed SUS (System Usability Scale) questionnaire, asked once right after the TAM questionnaire,
+   same place in the flow for every profile, right before the session is submitted. Standard 10-item
+   SUS wording (Brooke 1996), reworded "the system" -> "this platform" to match the TAM statements. */
+const SUS_STATEMENTS = [
+  {id:1, text:"I think that I would like to use this platform frequently.", positive:true},
+  {id:2, text:"I found this platform unnecessarily complex.", positive:false},
+  {id:3, text:"I thought this platform was easy to use.", positive:true},
+  {id:4, text:"I think I would need support from a technical person to use this platform.", positive:false},
+  {id:5, text:"I found the functions in this platform were well integrated.", positive:true},
+  {id:6, text:"I thought there was too much inconsistency in this platform.", positive:false},
+  {id:7, text:"I would imagine most people would learn to use this platform very quickly.", positive:true},
+  {id:8, text:"I found this platform very cumbersome to use.", positive:false},
+  {id:9, text:"I felt very confident using this platform.", positive:true},
+  {id:10, text:"I needed to learn a lot of things before I could get going with this platform.", positive:false}
+];
+function scoreSus(answers){
+  // answers: {1:1-5, ..., 10:1-5}. Standard SUS scoring: each item contributes 0-4 (reverse-coded for
+  // negative statements), summed (max 40) and multiplied by 2.5 to land on the familiar 0-100 scale.
+  const ids = SUS_STATEMENTS.map(q=>q.id);
+  if (!ids.every(id=>answers[id]!=null)) return null;
+  let sum = 0;
+  SUS_STATEMENTS.forEach(q=>{
+    const a = answers[q.id];
+    sum += q.positive ? (a-1) : (5-a);
+  });
+  return sum * 2.5;
+}
+
+let CONFIG = null;
+
+async function loadConfig(){
+  if (DB){
+    try{
+      const snap = await DB.doc("config/main").get();
+      if (snap.exists && snap.data() && snap.data().tasks && snap.data().tasks.length){
+        CONFIG = snap.data();
+        return;
+      }
+    }catch(e){}
+  }
+  CONFIG = sampleConfig();
+}
+async function saveConfig(cfg){
+  cfg.isSample = false;
+  cfg.updatedAt = new Date().toISOString();
+  if (!DB) { toast("Can't save — live storage isn't available in this view."); return false; }
+  try{ await DB.doc("config/main").set(cfg); CONFIG = cfg; toast("Saved."); return true; }
+  catch(e){ toast("Save failed: " + (e && e.code || e)); return false; }
+}
+
+/* ================= ROUTER ================= */
+function currentRoute(){
+  const h = (location.hash||"").replace("#","");
+  if (h === "setup" || h === "results") return h;
+  return "test";
+}
+function renderNav(){
+  const nav = $("#nav");
+  nav.innerHTML = "";
+  const route = currentRoute();
+  nav.append(el("a", {href:"#", class: route==="test"?"active":""}, "Take the test"));
+  // Inside Claude, only the owner/editor ever sees these links at all. Outside Claude there's no
+  // such check available, so show them to everyone and let the passcode gate in ownerOnlyNotice()
+  // do the actual gatekeeping once someone clicks through.
+  if (VIEWER.isOwner || VIEWER.canEdit || !IS_CLAUDE_RUNTIME){
+    nav.append(el("a", {href:"#setup", class: route==="setup"?"active":""}, "Setup"));
+    nav.append(el("a", {href:"#results", class: route==="results"?"active":""}, "Results"));
+  }
+}
+window.addEventListener("hashchange", render);
+
+async function render(){
+  renderNav();
+  const route = currentRoute();
+  const app = $("#app");
+  app.innerHTML = "";
+  document.body.classList.toggle("task-fullscreen", route === "test" && TEST.step === "screen");
+  if (route === "setup"){
+    if (!(VIEWER.isOwner||VIEWER.canEdit)) { app.append(ownerOnlyNotice()); return; }
+    app.append(await renderSetup());
+  } else if (route === "results"){
+    if (!(VIEWER.isOwner||VIEWER.canEdit)) { app.append(ownerOnlyNotice()); return; }
+    if (!resultsUnlocked()) { app.append(resultsPasswordGate()); return; }
+    app.append(await renderResults());
+  } else {
+    app.append(renderTest());
+  }
+}
+function ownerOnlyNotice(){
+  if (IS_CLAUDE_RUNTIME){
+    return el("div", {class:"card center"},
+      el("h2", null, "Researcher area"),
+      el("p", null, "This part of the tool is only visible to the person running the study."));
+  }
+  // Outside the Claude runtime there's no built-in "owner" concept at all, so give the researcher
+  // a way back in via the offline passcode instead of locking everyone out permanently.
+  const input = el("input", {type:"password", placeholder:"Researcher passcode", style:"max-width:220px"});
+  input.addEventListener("keydown", e=>{ if (e.key === "Enter") tryOfflineAdminUnlock(input.value); });
+  return el("div", {class:"card center"},
+    el("h2", null, "Researcher area"),
+    el("p", null, "This part of the tool is only visible to the person running the study."),
+    el("div", {class:"row", style:"justify-content:center; gap:8px; margin-top:10px"},
+      input,
+      el("button", {class:"btn", onclick:()=>tryOfflineAdminUnlock(input.value)}, "Unlock")));
+}
+
+/* ================= PARTICIPANT TEST FLOW ================= */
+const TEST = {
+  step:"intro",      // intro | profile | instructions | screen | complete | questionnaire | thanks
+  participant:{name:"", age:"", gender:""},
+  profile:null,
+  taskIdx:0,
+  screenId:null,
+  sessionId: null,
+  startedAt:null,
+  taskResults:[],       // [{taskId,title,profile,startedAt,durationMs,completed,events:[...]}]
+  curEvents:[],
+  curTaskStart:0,
+  lastMoveT:0,
+  answers:{},
+  tamAnswers:{},
+  susAnswers:{}
+};
+
+function profileTasks(profileName){
+  return (CONFIG.tasks||[]).filter(t=>t.profile===profileName);
+}
+
+function renderTest(){
+  switch(TEST.step){
+    case "intro": return stepIntro();
+    case "profile": return stepProfilePick();
+    case "instructions": return stepInstructions();
+    case "screen": return stepScreen();
+    case "taskQuestions": return stepTaskQuestions();
+    case "complete": return stepTaskComplete();
+    case "tam": return stepTam();
+    case "sus": return stepSus();
+    case "thanks": return stepThanks();
+    default: return stepProfilePick();
+  }
+}
+
+function stepIntro(){
+  const p = TEST.participant;
+  const wrap = el("div", {class:"card"});
+  const err = el("div", {class:"notice hidden"}, "Please fill in your name, age and gender to continue.");
+  const nameIn = el("input", {type:"text", value:p.name});
+  nameIn.oninput = e=> p.name = e.target.value;
+  const ageIn = el("input", {type:"number", min:"1", max:"120", value:p.age});
+  ageIn.oninput = e=> p.age = e.target.value;
+  const genderSel = el("select", {},
+    el("option", {value:""}, "Select…"),
+    el("option", {value:"Male"}, "Male"),
+    el("option", {value:"Female"}, "Female"),
+    el("option", {value:"Other"}, "Other"),
+    el("option", {value:"Prefer not to say"}, "Prefer not to say"));
+  genderSel.value = p.gender;
+  genderSel.onchange = e=> p.gender = e.target.value;
+  wrap.append(
+    el("h1", null, "Before you start"),
+    el("p", null, "A couple of quick details — these are only used to make sense of the results."),
+    err,
+    el("div", {class:"field"}, el("label", null, "Name"), nameIn),
+    el("div", {class:"field"}, el("label", null, "Age"), ageIn),
+    el("div", {class:"field"}, el("label", null, "Gender"), genderSel),
+    el("button", {class:"btn", onclick:()=>{
+      if (!p.name.trim() || !p.age || !p.gender){ err.classList.remove("hidden"); return; }
+      TEST.step = "profile";
+      render();
+    }}, "Continue")
+  );
+  return wrap;
+}
+
+function stepProfilePick(){
+  const wrap = el("div");
+  wrap.append(el("div", {class:"card"},
+    el("h1", null, "Welcome"),
+    el("p", null, "Pick the role you've been asked to test. You'll get short task instructions, then a few prototype screens to click through."),
+  ));
+  const grid = el("div", {class:"grid profiles"});
+  (CONFIG.profiles||[]).forEach(p=>{
+    const count = profileTasks(p).length;
+    const btn = el("button", {class:"btn ghost", style:"padding:18px;text-align:left;flex-direction:column;align-items:flex-start;gap:4px",
+      onclick: ()=>startProfile(p), disabled: count? undefined : "disabled"},
+      el("div", {style:"font-weight:800;font-size:.95rem"}, p),
+      el("div", {class:"muted"}, count ? (count+" task"+(count>1?"s":"")) : "no tasks yet"));
+    grid.append(btn);
+  });
+  wrap.append(el("div", {class:"card"}, grid));
+  return wrap;
+}
+
+function startProfile(p){
+  TEST.profile = p;
+  TEST.taskIdx = 0;
+  TEST.taskResults = [];
+  TEST.answers = {};
+  TEST.tamAnswers = {};
+  TEST.susAnswers = {};
+  TEST.sessionId = uid();
+  TEST.startedAt = now();
+  TEST.step = "instructions";
+  render();
+}
+
+function curTask(){ return profileTasks(TEST.profile)[TEST.taskIdx]; }
+
+function stepInstructions(){
+  const t = curTask();
+  const wrap = el("div");
+  wrap.append(el("div", {class:"card"},
+    el("div", {class:"pill"}, "Task " + (TEST.taskIdx+1) + " of " + profileTasks(TEST.profile).length),
+    el("p", {style:"margin-top:10px;font-size:1.05rem"}, t.instructions),
+    el("button", {class:"btn", onclick:()=>{
+      TEST.curTaskStart = now();
+      TEST.curEvents = [];
+      if (!(t.kind === "iframe" || t.kind === "iframe-nav")){
+        TEST.screenId = t.screens[0].id;
+      }
+      TEST.step = "screen";
+      render();
+    }}, "Start task")
+  ));
+  return wrap;
+}
+
+function findScreen(task, id){ return task.screens.find(s=>s.id===id); }
+
+function stepScreen(){
+  const t = curTask();
+  if (t.kind === "iframe" || t.kind === "iframe-nav") return renderIframeTask(t, false);
+  const screen = findScreen(t, TEST.screenId);
+  const wrap = el("div");
+  const imgWrapId = "imgwrap-" + screen.id;
+  const imgWrap = el("div", {class:"stage-img-wrap", id:imgWrapId});
+  const img = el("img", {src:screen.url, draggable:"false"});
+  imgWrap.append(img);
+  wrap.append(el("div", {class:"card"},
+    el("h2", null, t.title),
+    el("p", {class:"muted"}, screen.type==="drag" ? "Drag the highlighted element to complete this step." : "Click to continue."),
+    imgWrap
+  ));
+
+  let dragState = null;
+  function ptFromEvent(ev){
+    const r = img.getBoundingClientRect();
+    return { x: clamp01((ev.clientX - r.left)/r.width), y: clamp01((ev.clientY - r.top)/r.height) };
+  }
+  function inBox(pt, box){ return box && pt.x>=box.x && pt.x<=box.x+box.w && pt.y>=box.y && pt.y<=box.y+box.h; }
+  function log(type, pt, extra){
+    TEST.curEvents.push([ Math.round(now()-TEST.curTaskStart), type, Math.round(pt.x*1000), Math.round(pt.y*1000), extra||0, screen.id ]);
+  }
+  function advance(){
+    if (screen.isEnd || !screen.next){ finishTask(t); }
+    else { TEST.screenId = screen.next; render(); }
+  }
+
+  img.addEventListener("pointermove", (ev)=>{
+    const t2 = now();
+    if (t2 - TEST.lastMoveT < 180) return;
+    TEST.lastMoveT = t2;
+    if (TEST.curEvents.length > 1200) return;
+    log("move", ptFromEvent(ev));
+  });
+
+  if (screen.type === "drag"){
+    img.addEventListener("pointerdown", (ev)=>{
+      const pt = ptFromEvent(ev);
+      dragState = { startHit: inBox(pt, screen.hotspot) };
+      log("dragstart", pt, dragState.startHit?1:0);
+    });
+    img.addEventListener("pointerup", (ev)=>{
+      if (!dragState) return;
+      const pt = ptFromEvent(ev);
+      const ok = dragState.startHit && inBox(pt, screen.dragTarget||screen.hotspot);
+      log("dragend", pt, ok?1:0);
+      dragState = null;
+      if (ok) advance();
+    });
+  } else {
+    img.addEventListener("click", (ev)=>{
+      const pt = ptFromEvent(ev);
+      const hit = inBox(pt, screen.hotspot);
+      log("click", pt, hit?1:0);
+      if (hit) advance();
+    });
+  }
+  return wrap;
+}
+
+function finishTask(t, completed){
+  const durationMs = now() - TEST.curTaskStart;
+  TEST.taskResults.push({
+    taskId: t.id, title: t.title, profile: TEST.profile,
+    durationMs, completed: completed !== false, events: TEST.curEvents, perTask:{}
+  });
+  TEST.step = "taskQuestions";
+  render();
+}
+
+function stepTaskQuestions(){
+  const result = TEST.taskResults[TEST.taskResults.length-1];
+  const wrap = el("div", {class:"card"});
+  const err = el("div", {class:"notice hidden"}, "Please answer the first three questions to continue.");
+  wrap.append(el("h1", null, "Quick check"), el("p", {class:"muted"}, "A few questions about the task you just did."), err);
+  PER_TASK_QUESTIONS.forEach(q=>{
+    const field = el("div", {class:"field"});
+    field.append(el("label", null, q.label));
+    if (q.type === "choice"){
+      const row = el("div", {class:"row"});
+      q.options.forEach(opt=>{
+        const b = el("button", {type:"button", class:"btn sm ghost", onclick:(e)=>{
+          result.perTask[q.id] = opt;
+          row.querySelectorAll("button").forEach(x=>x.classList.remove("sel-opt"));
+          e.target.classList.add("sel-opt");
+          e.target.style.background = "var(--accent)"; e.target.style.color = "#0b2817";
+          [...row.querySelectorAll("button")].forEach(x=>{ if(x!==e.target){x.style.background="";x.style.color="";} });
+        }}, opt);
+        row.append(b);
+      });
+      field.append(row);
+    } else if (q.type === "scale5"){
+      const row = el("div", {class:"likert"});
+      row.append(el("span",{class:"muted",style:"font-size:.65rem;align-self:center"},q.lo));
+      for (let i=1;i<=5;i++){
+        const b = el("button", {type:"button", onclick:(e)=>{
+          result.perTask[q.id]=i;
+          row.querySelectorAll("button").forEach(x=>x.classList.remove("sel"));
+          e.target.classList.add("sel");
+        }}, String(i));
+        row.append(b);
+      }
+      row.append(el("span",{class:"muted",style:"font-size:.65rem;align-self:center"},q.hi));
+      field.append(row);
+    } else {
+      field.append(el("textarea", {oninput:(e)=>{result.perTask[q.id]=e.target.value;}}));
+    }
+    wrap.append(field);
+  });
+  wrap.append(el("button", {class:"btn", onclick:()=>{
+    if (!result.perTask.finished || !result.perTask.ease || !result.perTask.confidence){ err.classList.remove("hidden"); return; }
+    TEST.step = "complete";
+    render();
+  }}, "Continue"));
+  return wrap;
+}
+
+function stepTaskComplete(){
+  const tasks = profileTasks(TEST.profile);
+  const isLast = TEST.taskIdx >= tasks.length-1;
+  const wrap = el("div", {class:"card center"});
+  wrap.append(
+    el("h1", null, "Task " + (TEST.taskIdx+1) + " completed!"),
+    el("button", {class:"btn", onclick:()=>{
+      if (isLast){ TEST.step="tam"; } else { TEST.taskIdx++; TEST.step="instructions"; }
+      render();
+    }}, isLast ? "Continue to a few final questions" : "Next task")
+  );
+  return wrap;
+}
+
+function stepTam(){
+  const wrap = el("div", {class:"card"});
+  const err = el("div", {class:"notice hidden"}, "Please answer every statement to continue.");
+  wrap.append(el("h1", null, "Last step"), el("p", {class:"muted"}, "How much do you agree with each statement about Smart Seva?"), err);
+  TAM_STATEMENTS.forEach(q=>{
+    const field = el("div", {class:"field"});
+    field.append(el("label", null, q.text));
+    const row = el("div", {class:"likert"});
+    row.append(el("span",{class:"muted",style:"font-size:.65rem;align-self:center"},"Disagree"));
+    for (let i=1;i<=5;i++){
+      const b = el("button", {type:"button", onclick:(e)=>{
+        TEST.tamAnswers[q.id]=i;
+        row.querySelectorAll("button").forEach(x=>x.classList.remove("sel"));
+        e.target.classList.add("sel");
+      }}, String(i));
+      row.append(b);
+    }
+    row.append(el("span",{class:"muted",style:"font-size:.65rem;align-self:center"},"Agree"));
+    field.append(row);
+    wrap.append(field);
+  });
+  wrap.append(el("button", {class:"btn", onclick:()=>{
+    if (Object.keys(TEST.tamAnswers).length < 8){ err.classList.remove("hidden"); return; }
+    TEST.step = "sus";
+    render();
+  }}, "Continue"));
+  return wrap;
+}
+
+function stepSus(){
+  const wrap = el("div", {class:"card"});
+  const err = el("div", {class:"notice hidden"}, "Please answer every statement to continue.");
+  wrap.append(el("h1", null, "Almost done"), el("p", {class:"muted"}, "A last set of statements about Smart Seva overall."), err);
+  SUS_STATEMENTS.forEach(q=>{
+    const field = el("div", {class:"field"});
+    field.append(el("label", null, q.text));
+    const row = el("div", {class:"likert"});
+    row.append(el("span",{class:"muted",style:"font-size:.65rem;align-self:center"},"Strongly disagree"));
+    for (let i=1;i<=5;i++){
+      const b = el("button", {type:"button", onclick:(e)=>{
+        TEST.susAnswers[q.id]=i;
+        row.querySelectorAll("button").forEach(x=>x.classList.remove("sel"));
+        e.target.classList.add("sel");
+      }}, String(i));
+      row.append(b);
+    }
+    row.append(el("span",{class:"muted",style:"font-size:.65rem;align-self:center"},"Strongly agree"));
+    field.append(row);
+    wrap.append(field);
+  });
+  wrap.append(el("button", {class:"btn", onclick:()=>{
+    if (Object.keys(TEST.susAnswers).length < 10){ err.classList.remove("hidden"); return; }
+    submitSession();
+  }}, "Submit"));
+  return wrap;
+}
+
+async function submitSession(){
+  const tamScores = scoreTam(TEST.tamAnswers);
+  const susScore = scoreSus(TEST.susAnswers);
+  const payload = {
+    id: TEST.sessionId, participant: TEST.participant, profile: TEST.profile, startedAt: new Date(TEST.startedAt).toISOString(),
+    finishedAt: new Date().toISOString(),
+    taskResults: TEST.taskResults, answers: TEST.answers,
+    tamAnswers: TEST.tamAnswers, tamScores,
+    susAnswers: TEST.susAnswers, susScore
+  };
+  let saved = false;
+  if (DB){
+    try{ await DB.doc("sessions/"+TEST.sessionId).set(payload); saved = true; }catch(e){ saved=false; }
+  }
+  if (!saved && REMOTE_STORE_URL){
+    saved = await remoteSave(payload);
+  }
+  TEST.step = "thanks";
+  TEST.lastPayload = payload;
+  TEST.saved = saved;
+  render();
+}
+
+function stepThanks(){
+  const wrap = el("div", {class:"card center"});
+  if (TEST.saved){
+    wrap.append(el("h1", null, "Thanks for testing!"), el("p", null, "Your results were recorded."));
+  } else {
+    wrap.append(
+      el("h1", null, "Thanks for testing!"),
+      el("div", {class:"notice"}, "This device/account can't save results live here. Please download your results file below and send it to the researcher."),
+      el("button", {class:"btn", onclick: downloadOwnResults}, "Download my results")
+    );
+  }
+  wrap.append(el("div", {style:"margin-top:14px"}, el("button", {class:"btn ghost", onclick:()=>{
+    TEST.step="intro"; TEST.participant={name:"",age:"",gender:""}; render();
+  }}, "Done")));
+  return wrap;
+}
+async function downloadOwnResults(){
+  const json = JSON.stringify(TEST.lastPayload, null, 2);
+  const filename = "smart-seva-result-"+TEST.sessionId.slice(0,8)+".json";
+  if (DOWNLOADS){
+    try{
+      await DOWNLOADS.save({ filename, data: json });
+      toast("Downloaded. Please send this file to the researcher.");
+      return;
+    }catch(e){ /* fall through to the plain browser download below */ }
+  }
+  if (downloadFileLocally(filename, json, "application/json")){
+    toast("Downloaded. Please send this file to the researcher.");
+  } else {
+    toast("Download didn't work — copy this instead:\n" + json.slice(0,200)+"…");
+  }
+}
+
+/* ================= EMBEDDED FLOW SCREENS (real Figma code-export, same-origin iframe) =================
+   Each flow*.html is a self-contained bundle exported from Figma; it already guards itself so only
+   the single "correct" element at each step is clickable (every such element is wrapped so it gets a
+   `data-hp` attribute while — and only while — it's the intended happy-path action; everything else has
+   no click handler at all). Serving these files alongside this page (see the Artifact `files` map) keeps
+   them same-origin, so — unlike an embedded figma.com prototype link — we CAN reach into the iframe's
+   document from here and track real clicks/cursor movement, and detect when a task is finished.
+
+   Round 2 adds a second iframe task kind, "iframe-nav": a fully-navigable portal (every element stays
+   clickable — nothing is guarded/blocked) where specific elements are marked `data-task-hp="taskId:step"`
+   directly in the portal's own source. See hookIframeNavTracking below. */
+
+function iframeNativeSize(t){
+  // Real, confirmed Figma canvas sizes (checked against the actual Figma file, not guessed): every
+  // desktop frame across all 10 flows is exactly 1440x1024, every mobile frame exactly 390x844. The
+  // Round 2 portals (kind:"iframe-nav") reuse the same convention.
+  return t.frame === "mobile" ? {w:390, h:844} : {w:1440, h:1024};
+}
+
+// Wraps a fixed-size iframe in a responsive scaler (CSS transform) so a flow screen fits as a small
+// thumbnail/snapshot inside a card — used only for the read-only Setup/Results previews. The LIVE
+// task view doesn't use this at all (see renderIframeTask below): those flow exports are genuinely
+// responsive, so the live iframe is just sized to fill its container directly.
+// mode:
+//   "viewport"  — fit within the whole browser window (width AND height), never upscale (legacy use).
+//   undefined   — fit the width of whatever card/column it's placed in, never upscale (Setup/Results).
+function makeScaledFrame(nativeW, nativeH, src, title, mode){
+  const outer = el("div", {class:"iframe-outer"});
+  const scaler = el("div", {class:"iframe-scaler", style:"width:"+nativeW+"px;height:"+nativeH+"px;transform-origin:top left"});
+  const iframe = el("iframe", {src, title, style:"width:"+nativeW+"px;height:"+nativeH+"px"});
+  scaler.append(iframe);
+  outer.append(scaler);
+  // Measure the PARENT's width, not outer's own — resize() below sets an explicit inline width on
+  // outer itself, so reading outer's own rect would just read back our last answer and stop tracking
+  // the container (e.g. after the browser window is resized).
+  function resize(){
+    let scale;
+    if (mode === "viewport"){
+      const availW = window.innerWidth - 24, availH = window.innerHeight - 24;
+      scale = Math.min(1, availW / nativeW, availH / nativeH);
+    } else {
+      const availW = (outer.parentElement && outer.parentElement.getBoundingClientRect().width) || nativeW;
+      scale = Math.min(1, availW / nativeW);
+    }
+    scaler.style.transform = "scale(" + scale + ")";
+    outer.style.width = Math.round(nativeW * scale) + "px";
+    outer.style.height = Math.round(nativeH * scale) + "px";
+  }
+  requestAnimationFrame(resize);
+  if (window.ResizeObserver && outer.parentElement){ new ResizeObserver(resize).observe(outer.parentElement); }
+  window.addEventListener("resize", resize);
+  return {outer, iframe};
+}
+
+function renderIframeTask(t, readOnly, goToScreen){
+  // a fresh src each time means a fresh load of the flow's own start state — exactly what we want
+  // both for a participant starting the task and for the read-only backdrop used behind a heatmap
+  if (readOnly){
+    // Admin previews (Setup/Results) stay as a small scaled-down snapshot inside a card — scaling
+    // is fine there since nothing is interactive and it just needs to look like a thumbnail.
+    const {w, h} = iframeNativeSize(t);
+    const {outer, iframe} = makeScaledFrame(w, h, t.flowFile, t.title, undefined);
+    // For a per-screen heatmap backdrop, tell the portal's own injected tracking script (which
+    // also knows how to flip to an arbitrary `[id^="view-"]` screen, see hub/co/manager/supervisor's
+    // shared snippet) to land on that screen once it's loaded, instead of its default first screen.
+    if (goToScreen && (t.kind === "iframe" || t.kind === "iframe-nav")){
+      iframe.addEventListener("load", function onLoad(){
+        try{ iframe.contentWindow.postMessage({__ssGoToView: goToScreen}, "*"); }catch(e){}
+      });
+    }
+    return outer;
+  }
+  // live task: a banner with the task instructions pinned at the top (visible the whole time the
+  // task is being performed), and the actual portal screen below it, rendered at its real Figma
+  // canvas size and scaled as a whole (never reflowed, never cropped, never scrollbar'd at the
+  // outer level) to fit whatever space is available — exactly like Figma's own "scale to fit".
+  // Any panel the design itself marked scrollable (a complaints table, a ticket sidecar body) still
+  // scrolls internally, because the screen is rendered at its one true native size either way.
+  const {w: nativeW, h: nativeH} = iframeNativeSize(t);
+  const stage = el("div", {class:"task-fs-stage"});
+  const finishBtn = el("button", {class:"btn task-fs-finish", onclick:()=>{ finishTask(t, true); }}, "Finish Task");
+  const banner = el("div", {class:"task-fs-banner"},
+    el("div", {class:"pill"}, "Task " + (TEST.taskIdx+1) + " of " + profileTasks(TEST.profile).length),
+    el("div", {class:"task-fs-text"}, t.instructions),
+    finishBtn);
+  const body = el("div", {class:"task-fs-body"});
+  const outer = el("div", {class:"task-fs-outer"});
+  const scaler = el("div", {class:"task-fs-scaler", style:"width:"+nativeW+"px;height:"+nativeH+"px"});
+  const iframe = el("iframe", {src: t.flowFile, title: t.title, style:"width:"+nativeW+"px;height:"+nativeH+"px"});
+  scaler.append(iframe);
+  outer.append(scaler);
+  body.append(outer);
+  stage.append(banner, body);
+  if (t.kind === "iframe-nav") hookIframeNavTracking(iframe, t, body, outer, scaler, nativeW, nativeH);
+  else hookIframeTracking(iframe, t, body, outer, scaler, nativeW, nativeH);
+  return stage;
+}
+
+const WRONG_CLICK_LIMIT = 30; // after this many misses in one task, treat it as failed and move on
+
+// Tracking no longer reaches into iframe.contentDocument directly — Claude's artifact hosting can
+// serve the supporting flow*.html files from a different host than the page itself, which makes that
+// cross-origin and silently breaks (contentDocument just comes back null, no error). Instead each
+// flow*.html has a small script injected at the end of its <body> (see scratchpad/inject_snippet.html)
+// that tracks its own clicks/movement/content-height and reports them to us via postMessage, which
+// works regardless of origin. This listener is attached once; it filters by event.source so only the
+// iframe that is currently showing a live task is acted on.
+let CUR_TRACK_IFRAME_WIN = null;
+let CUR_TRACK_STATE = null; // {t, wrongClicks, sawHit, doneScheduled}
+window.addEventListener("message", function(ev){
+  const d = ev.data;
+  if (!d || !d.__ssTrack) return;
+  if (!CUR_TRACK_IFRAME_WIN || ev.source !== CUR_TRACK_IFRAME_WIN) return;
+  const st = CUR_TRACK_STATE;
+  if (!st || TEST.step !== "screen") return;
+  const t = st.t;
+  if (d.type === "move"){
+    const tt = now();
+    if (tt - TEST.lastMoveT < 180) return;
+    TEST.lastMoveT = tt;
+    if (TEST.curEvents.length > 1200) return;
+    TEST.curEvents.push([Math.round(tt - TEST.curTaskStart), "move", Math.round(clamp01(d.x)*1000), Math.round(clamp01(d.y)*1000), 0, t.id]);
+  } else if (d.type === "click"){
+    TEST.curEvents.push([Math.round(now() - TEST.curTaskStart), "click", Math.round(clamp01(d.x)*1000), Math.round(clamp01(d.y)*1000), d.hit?1:0, t.id]);
+    if (d.hit){
+      st.sawHit = true;
+    } else {
+      st.wrongClicks++;
+      if (st.wrongClicks >= WRONG_CLICK_LIMIT){
+        finishTask(t, false); // too many wrong clicks — count the task as failed and move on
+      }
+    }
+  } else if (d.type === "state" || d.type === "ready"){
+    // the embedded screen clears every data-hp marker once its happy path is complete — our
+    // generic, flow-agnostic "task finished" signal. Wait 1.5s before moving on so the participant
+    // actually sees the real portal's own confirmation/toast first.
+    if (d.type === "state" && d.remaining === 0 && st.sawHit && !st.doneScheduled){
+      st.doneScheduled = true;
+      setTimeout(function(){ if (TEST.step === "screen" && CUR_TRACK_STATE === st) finishTask(t, true); }, 1500);
+    }
+  }
+  // "size" messages from the flow file are ignored here — see hookIframeTracking below for why
+  // dynamic height measurement doesn't work for these screens and a static native size is used instead.
+});
+
+function hookIframeTracking(iframe, t, body, outer, scaler, nativeW, nativeH){
+  const st = { t, wrongClicks:0, sawHit:false, doneScheduled:false };
+  CUR_TRACK_STATE = st;
+  // Every exported screen is built responsively (flex-1/h-full chains, min-height:0'd so a marked
+  // panel like a complaints table or ticket sidebar body can scroll internally) so the page can
+  // never be made to reveal a true "needed" content height by measurement — it just silently
+  // compresses to fill whatever box it's given, at any size. So instead of measuring, each screen is
+  // rendered at its one real, fixed Figma canvas size (1440x1024 desktop, 390x844 mobile — confirmed
+  // against the actual Figma file) and the WHOLE thing is scaled down uniformly with a CSS transform
+  // to fit the space available, exactly like Figma's own "scale to fit" — never cropped, never an
+  // outer scrollbar, and any panel the design itself marked scrollable still scrolls internally
+  // because, at its one true native size, it renders exactly as designed.
+  function layout(){
+    const availW = body.clientWidth, availH = body.clientHeight;
+    if (!availW || !availH) return;
+    const scale = Math.min(1, availW / nativeW, availH / nativeH); // never upscale past native size
+    scaler.style.transform = "scale(" + scale + ")";
+    outer.style.width = Math.round(nativeW * scale) + "px";
+    outer.style.height = Math.round(nativeH * scale) + "px";
+  }
+  requestAnimationFrame(layout);
+  if (window.ResizeObserver){ new ResizeObserver(layout).observe(body); }
+  window.addEventListener("resize", layout);
+  iframe.addEventListener("load", function onLoad(){
+    CUR_TRACK_IFRAME_WIN = iframe.contentWindow || null;
+  });
+}
+
+/* ---- Round 2 "iframe-nav" tracking: the embedded portal stays fully navigable (nothing blocked).
+   Each portal's own HTML has a generic injected script (reports __ssTrack2 messages: every click's
+   normalized x/y, whatever data-task-hp="taskId:step" its target's nearest ancestor carries (or
+   null — inert leftover plumbing, not read here), and now also which top-level screen was active
+   at that moment — screen: the id of whichever `[id^="view-"]` element currently carries the
+   "active" class (every portal uses this same convention for its own tabs/sub-screens), and
+   screenLabel: a human-readable name for it (the matching nav control's text, or the id prettified).
+   A task is no longer auto-completed by matching hp markers — the participant ends the task
+   themselves with the "Finish Task" button (see renderIframeTask/finishTask). This listener's job
+   is just to log every click and cursor-move sample, tagged with its screen, uniformly (no hit/miss
+   distinction) so Results can show one density heatmap per screen the task actually visited. */
+let CUR_NAV_IFRAME_WIN = null;
+let CUR_NAV_STATE = null; // {t}
+window.addEventListener("message", function(ev){
+  const d = ev.data;
+  if (!d || !d.__ssTrack2) return;
+  if (!CUR_NAV_IFRAME_WIN || ev.source !== CUR_NAV_IFRAME_WIN) return;
+  const st = CUR_NAV_STATE;
+  if (!st || TEST.step !== "screen") return;
+  const t = st.t;
+  const screen = d.screen || "unknown";
+  const screenLabel = d.screenLabel || "Screen";
+  if (d.type === "move"){
+    const tt = now();
+    if (tt - TEST.lastMoveT < 180) return;
+    TEST.lastMoveT = tt;
+    if (TEST.curEvents.length > 1200) return;
+    TEST.curEvents.push([Math.round(tt - TEST.curTaskStart), "move", Math.round(clamp01(d.x)*1000), Math.round(clamp01(d.y)*1000), 0, t.id, screen, screenLabel]);
+  } else if (d.type === "click"){
+    TEST.curEvents.push([Math.round(now() - TEST.curTaskStart), "click", Math.round(clamp01(d.x)*1000), Math.round(clamp01(d.y)*1000), 0, t.id, screen, screenLabel]);
+  }
+});
+
+function hookIframeNavTracking(iframe, t, body, outer, scaler, nativeW, nativeH){
+  const st = { t };
+  CUR_NAV_STATE = st;
+  function layout(){
+    const availW = body.clientWidth, availH = body.clientHeight;
+    if (!availW || !availH) return;
+    const scale = Math.min(1, availW / nativeW, availH / nativeH);
+    scaler.style.transform = "scale(" + scale + ")";
+    outer.style.width = Math.round(nativeW * scale) + "px";
+    outer.style.height = Math.round(nativeH * scale) + "px";
+  }
+  requestAnimationFrame(layout);
+  if (window.ResizeObserver){ new ResizeObserver(layout).observe(body); }
+  window.addEventListener("resize", layout);
+  iframe.addEventListener("load", function onLoad(){
+    CUR_NAV_IFRAME_WIN = iframe.contentWindow || null;
+  });
+}
+
+/* ================= SETUP (researcher) ================= */
+let setupDraft = null; // working copy of CONFIG while editing
+function ensureDraft(){ if (!setupDraft) setupDraft = JSON.parse(JSON.stringify(CONFIG)); return setupDraft; }
+
+async function renderSetup(){
+  const cfg = ensureDraft();
+  const wrap = el("div");
+  wrap.append(el("div", {class:"card"},
+    el("h1", null, "Setup"),
+    el("p", null, "Define profiles, tasks and screens here. Participants only ever see the “Take the test” flow."),
+    el("div", {class:"row"},
+      el("button", {class:"btn", onclick: async ()=>{ if (await saveConfig(cfg)) { setupDraft=null; render(); } }}, "Save changes"),
+      el("button", {class:"btn ghost", onclick: ()=>{ setupDraft=null; render(); }}, "Discard changes")
+    )
+  ));
+
+  // Profiles
+  const profCard = el("div", {class:"card"});
+  profCard.append(el("h3", null, "Profiles"));
+  const profRow = el("div", {class:"row"});
+  cfg.profiles.forEach((p,i)=>{
+    profRow.append(el("span", {class:"pill", style:"cursor:pointer"}, p + " ×",
+    ));
+    profRow.lastChild.onclick = ()=>{ cfg.profiles.splice(i,1); renderSetupInto(wrap); };
+  });
+  const newProf = el("input", {type:"text", placeholder:"Add role name…", style:"max-width:220px"});
+  profRow.append(newProf, el("button", {class:"btn sm ghost", onclick:()=>{
+    if (newProf.value.trim()){ cfg.profiles.push(newProf.value.trim()); renderSetupInto(wrap); }
+  }}, "Add"));
+  profCard.append(profRow);
+  wrap.append(profCard);
+
+  // Tasks
+  const taskCard = el("div", {class:"card"});
+  taskCard.append(el("h3", null, "Tasks"));
+  cfg.tasks.forEach((t, ti)=>{
+    taskCard.append(renderTaskEditor(cfg, t, ti, wrap));
+  });
+  taskCard.append(el("button", {class:"btn ghost", onclick:()=>{
+    cfg.tasks.push({ id:uid(), profile: cfg.profiles[0]||"", title:"New task", instructions:"", screens:[] });
+    renderSetupInto(wrap);
+  }}, "+ Add task"));
+  wrap.append(taskCard);
+
+  // Questionnaire (fixed — per-task micro-questions + the TAM questionnaire are built into the tool,
+  // not editable per project, so this is read-only here)
+  const qCard = el("div", {class:"card"});
+  qCard.append(el("h3", null, "Questions asked of participants"),
+    el("p",{class:"muted"},"These are fixed for every task/profile and aren't edited here."));
+  qCard.append(el("div",{style:"font-weight:700;margin:10px 0 4px"},"After every task:"));
+  PER_TASK_QUESTIONS.forEach(q=> qCard.append(el("div",{class:"muted",style:"margin-bottom:3px"},"• "+q.label)));
+  qCard.append(el("div",{style:"font-weight:700;margin:14px 0 4px"},"After the last task in a role (TAM questionnaire):"));
+  TAM_STATEMENTS.forEach(q=> qCard.append(el("div",{class:"muted",style:"margin-bottom:3px"},"• "+q.text)));
+  qCard.append(el("div",{style:"font-weight:700;margin:14px 0 4px"},"Then, right before submitting (SUS questionnaire):"));
+  SUS_STATEMENTS.forEach(q=> qCard.append(el("div",{class:"muted",style:"margin-bottom:3px"},"• "+q.text)));
+  wrap.append(qCard);
+
+  return wrap;
+}
+function renderSetupInto(oldWrap){
+  renderSetup().then(fresh=>{ oldWrap.replaceWith(fresh); });
+}
+
+function renderTaskEditor(cfg, t, ti, rootWrap){
+  const box = el("div", {class:"taskline"});
+  const meta = el("div", {class:"meta"});
+  const titleIn = el("input", {type:"text", value:t.title});
+  titleIn.oninput = e=> t.title = e.target.value;
+  const profSel = el("select");
+  cfg.profiles.forEach(p=> profSel.append(el("option", {value:p, selected:p===t.profile?"selected":undefined}, p)));
+  profSel.onchange = e=> t.profile = e.target.value;
+  const instrIn = el("textarea", {}, t.instructions);
+  instrIn.oninput = e=> t.instructions = e.target.value;
+
+  meta.append(
+    el("div", {class:"row", style:"margin-bottom:8px"}, el("div",{style:"flex:2"},titleIn), el("div",{style:"max-width:180px;flex:1"},profSel)),
+    el("div", {class:"field"}, el("label", null, "Instructions shown to the participant"), instrIn)
+  );
+
+  if (t.kind === "iframe" || t.kind === "iframe-nav"){
+    meta.append(el("div", {class:"notice"}, "This task embeds a real exported portal (" + (t.flowFile||"?") + ", " + (t.frame||"desktop") + " frame). It isn't editable from this screen — ask the developer to swap the file or change its mapping in code."));
+  } else {
+    meta.append(el("div", {class:"muted", style:"margin:8px 0"}, (t.screens||[]).length + " screen" + ((t.screens||[]).length===1?"":"s")));
+    const screensWrap = el("div");
+    (t.screens||[]).forEach((s, si)=> screensWrap.append(renderScreenEditor(t, s, si, rootWrap)));
+    meta.append(screensWrap);
+    meta.append(el("div", {class:"row", style:"margin-top:8px"},
+      el("button", {class:"btn sm ghost", onclick: ()=>addScreen(t, rootWrap)}, "+ Add screen")
+    ));
+  }
+
+  meta.append(el("div", {class:"row", style:"margin-top:8px"},
+    el("button", {class:"btn sm ghost", onclick: ()=>{ cfg.tasks.splice(ti,1); renderSetupInto(rootWrap); }}, "Delete task")
+  ));
+  box.append(meta);
+  return box;
+}
+
+function addScreen(t, rootWrap){
+  t.screens.push({ id: uid(), url: placeholderShot("New screen","Upload an image below"), w:900,h:560,
+    type:"click", hotspot:{x:.3,y:.3,w:.4,h:.15}, next:null, isEnd: t.screens.length===0 });
+  // wire "next" chain: previous last non-end screen points here
+  if (t.screens.length>1){
+    const prev = t.screens[t.screens.length-2];
+    if (!prev.isEnd && !prev.next) prev.next = t.screens[t.screens.length-1].id;
+  }
+  renderSetupInto(rootWrap);
+}
+
+function renderScreenEditor(t, s, si, rootWrap){
+  const card = el("div", {style:"border:1px solid var(--border);border-radius:10px;padding:12px;margin:10px 0;background:var(--bg-elev)"});
+  const head = el("div", {class:"row", style:"margin-bottom:8px"},
+    el("strong", null, "Screen " + (si+1)),
+    s.isEnd ? el("span", {class:"badge-end"}, "ENDS TASK") : null,
+    s.type==="drag" ? el("span", {class:"badge-drag"}, "DRAG") : null
+  );
+  const imgBoxId = "shot-"+s.id;
+  const imgBox = el("div", {class:"stage-img-wrap", id:imgBoxId, style:"max-height:340px"});
+  const img = el("img", {src:s.url});
+  imgBox.append(img);
+  const hotbox = el("div", {class:"overlay"});
+  function drawHotbox(){
+    hotbox.innerHTML = "";
+    if (s.hotspot) hotbox.append(el("div", {class:"hotbox", style:`left:${s.hotspot.x*100}%;top:${s.hotspot.y*100}%;width:${s.hotspot.w*100}%;height:${s.hotspot.h*100}%`}));
+    if (s.type==="drag" && s.dragTarget) hotbox.append(el("div", {class:"hotbox", style:`left:${s.dragTarget.x*100}%;top:${s.dragTarget.y*100}%;width:${s.dragTarget.w*100}%;height:${s.dragTarget.h*100}%;border-color:var(--good)`}));
+  }
+  drawHotbox();
+  imgBox.append(hotbox);
+  img.onload = drawHotbox;
+
+  function startDraw(targetKey, label){
+    toast("Drag on the image to draw: " + label);
+    const surf = el("div", {class:"draw-surface"});
+    let startPt = null, box = null;
+    imgBox.append(surf);
+    surf.addEventListener("pointerdown", (ev)=>{
+      const r = img.getBoundingClientRect();
+      startPt = { x: clamp01((ev.clientX-r.left)/r.width), y: clamp01((ev.clientY-r.top)/r.height) };
+      box = el("div", {class:"hotbox"}); hotbox.append(box);
+    });
+    surf.addEventListener("pointermove",(ev)=>{
+      if (!startPt) return;
+      const r = img.getBoundingClientRect();
+      const x2 = clamp01((ev.clientX-r.left)/r.width), y2=clamp01((ev.clientY-r.top)/r.height);
+      const x=Math.min(startPt.x,x2), y=Math.min(startPt.y,y2), w=Math.abs(x2-startPt.x), h=Math.abs(y2-startPt.y);
+      box.style.left=(x*100)+"%"; box.style.top=(y*100)+"%"; box.style.width=(w*100)+"%"; box.style.height=(h*100)+"%";
+      box.dataset.rect = JSON.stringify({x,y,w,h});
+    });
+    surf.addEventListener("pointerup", ()=>{
+      if (box && box.dataset.rect){
+        const r = JSON.parse(box.dataset.rect);
+        if (r.w>0.01 && r.h>0.01) s[targetKey] = r;
+      }
+      startPt = null;
+      surf.remove();
+      drawHotbox();
+    });
+  }
+
+  const typeSel = el("select", {},
+    el("option", {value:"click", selected: s.type==="click"?"selected":undefined}, "Click"),
+    el("option", {value:"drag", selected: s.type==="drag"?"selected":undefined}, "Drag"));
+  typeSel.onchange = e=>{ s.type = e.target.value; renderSetupInto(rootWrap); };
+
+  const endChk = el("input", {type:"checkbox", checked: s.isEnd?"checked":undefined});
+  endChk.onchange = e=> s.isEnd = e.target.checked;
+
+  const fileIn = el("input", {type:"file", accept:"image/*"});
+  fileIn.onchange = async (e)=>{
+    const f = e.target.files[0]; if (!f) return;
+    if (!ASSETS){ toast("Can't upload images in this view."); return; }
+    try{
+      const res = await ASSETS.upload(f);
+      const tmp = new Image();
+      tmp.onload = ()=>{ s.w = tmp.naturalWidth; s.h = tmp.naturalHeight; };
+      tmp.src = res.url;
+      s.url = res.url;
+      renderSetupInto(rootWrap);
+    }catch(err){ toast("Upload failed: " + (err&&err.code||err)); }
+  };
+
+  const nextSel = el("select", {}, el("option", {value:""}, "(none)"));
+  t.screens.forEach(sc=>{ if (sc.id!==s.id) nextSel.append(el("option", {value:sc.id, selected: s.next===sc.id?"selected":undefined}, "→ "+ (t.screens.indexOf(sc)+1))); });
+  nextSel.onchange = e=> s.next = e.target.value||null;
+
+  card.append(head, imgBox,
+    el("div", {class:"row", style:"margin-top:10px"},
+      fileIn,
+      el("div", {}, el("label",null,"Interaction"), typeSel),
+      el("div", {}, el("label",null,"This screen ends the task"), endChk),
+      s.isEnd? null : el("div", {}, el("label",null,"Goes to"), nextSel),
+      el("button", {class:"btn sm ghost", onclick:()=>startDraw("hotspot", s.type==="drag"?"pick-up zone":"clickable zone")}, "Draw "+(s.type==="drag"?"start":"hotspot")+" zone"),
+      s.type==="drag" ? el("button", {class:"btn sm ghost", onclick:()=>startDraw("dragTarget","drop zone")}, "Draw drop zone") : null,
+      el("button", {class:"btn sm ghost", onclick:()=>{ t.screens.splice(si,1); renderSetupInto(rootWrap); }}, "Delete screen")
+    )
+  );
+  return card;
+}
+
+/* ================= RESULTS (researcher) ================= */
+// Two top-level sub-views: an "overview" summary across every session, and a "details" view with
+// one profile-tab at a time holding all the deep-dive breakdowns (participants, timings, heatmaps,
+// per-task questions, TAM, SUS). Plain module state, same pattern as setupDraft.
+let RESULTS_VIEW = "overview";
+let RESULTS_PROFILE = null;
+
+async function renderResults(){
+  const wrap = el("div");
+  wrap.append(el("div", {class:"card"}, el("h1", null, "Results"), el("div", {id:"import-area"})));
+  wrap.querySelector("#import-area").append(renderImportBox(wrap));
+
+  if (!DB && !REMOTE_STORE_URL){
+    wrap.append(el("div", {class:"card"}, el("p", null, "Live storage isn't available in this view, so only results you import below will show here.")));
+  }
+  let sessions = [];
+  if (DB){
+    try{
+      const snap = await DB.collection("sessions").get();
+      sessions = snap.docs.map(d=>d.data());
+    }catch(e){ wrap.append(el("div", {class:"card"}, el("p", null, "Couldn't load saved sessions (" + (e&&e.code||e) + ").")));}
+  } else if (REMOTE_STORE_URL){
+    sessions = await remoteLoadAll();
+    if (!sessions.length) wrap.append(el("div", {class:"card"}, el("p", null, "Connected to the remote store, but no sessions recorded there yet.")));
+  }
+  sessions = sessions.concat(importedSessions);
+
+  if (!sessions.length){
+    wrap.append(el("div", {class:"card center"}, el("p", null, "No sessions yet. Once participants complete the test, their results will appear here.")));
+    return wrap;
+  }
+
+  const tabCard = el("div", {class:"card"});
+  const tabRow = el("div", {class:"row"});
+  [["overview","Overview"],["details","Details"]].forEach(([key,label])=>{
+    tabRow.append(el("button", {class:"btn sm "+(RESULTS_VIEW===key?"":"ghost"), onclick:()=>{ RESULTS_VIEW = key; render(); }}, label));
+  });
+  tabCard.append(tabRow, el("div", {style:"margin-top:10px"},
+    el("button", {class:"btn sm ghost", onclick: ()=>exportCsv(sessions)}, "Export CSV")));
+  wrap.append(tabCard);
+
+  if (RESULTS_VIEW === "details") wrap.append(renderResultsDetails(sessions));
+  else wrap.append(renderResultsOverview(sessions));
+
+  return wrap;
+}
+
+function renderResultsOverview(sessions){
+  const card = el("div", {class:"card"});
+  card.append(el("h3", null, "Overview"));
+
+  const allResults = sessions.flatMap(s=>s.taskResults||[]);
+  const totalAttempts = allResults.length;
+  const successCount = allResults.filter(r=>r.perTask && r.perTask.finished === "Yes").length;
+  const effectivenessPct = totalAttempts ? (successCount/totalAttempts*100) : null;
+
+  const confVals = allResults.map(r=>r.perTask && r.perTask.confidence).filter(v=>v!=null);
+  const confidencePct = confVals.length ? (avg(confVals)/5*100) : null;
+
+  const tamSessions = sessions.filter(s=>s.tamScores);
+  const puVals = tamSessions.map(s=>s.tamScores.pu).filter(v=>v!=null);
+  const peouVals = tamSessions.map(s=>s.tamScores.peou).filter(v=>v!=null);
+  const ovVals = tamSessions.map(s=>s.tamScores.overall).filter(v=>v!=null);
+
+  const susVals = sessions.map(s=>s.susScore).filter(v=>v!=null);
+
+  const sg = el("div", {class:"statgrid"});
+  sg.append(
+    statBox(sessions.length, "Sessions"),
+    statBox(effectivenessPct!=null ? effectivenessPct.toFixed(0)+"%" : "—", "Effectiveness (tasks completed)"),
+    statBox(confidencePct!=null ? confidencePct.toFixed(0)+"%" : "—", "User confidence"),
+    statBox(puVals.length ? avg(puVals).toFixed(1) : "—", "Avg TAM — usefulness"),
+    statBox(peouVals.length ? avg(peouVals).toFixed(1) : "—", "Avg TAM — ease of use"),
+    statBox(ovVals.length ? avg(ovVals).toFixed(1) : "—", "Avg TAM — overall"),
+    statBox(susVals.length ? avg(susVals).toFixed(1) : "—", "Avg SUS score")
+  );
+  card.append(sg);
+  card.append(el("p", {class:"muted", style:"margin-top:4px"},
+    "Effectiveness = tasks where the participant said “Yes” to finishing, divided by every task attempted. User confidence is the average of the per-task confidence rating, shown as a percentage of its 5-point scale. See the Details tab for a breakdown per role."));
+  return card;
+}
+
+function tasksForProfile(profile){ return (CONFIG.tasks||[]).filter(t=>t.profile===profile); }
+
+function renderResultsDetails(allSessions){
+  const wrap = el("div");
+  const profiles = CONFIG.profiles||[];
+  if (!RESULTS_PROFILE || !profiles.includes(RESULTS_PROFILE)) RESULTS_PROFILE = profiles[0]||null;
+
+  const tabCard = el("div", {class:"card"});
+  const tabRow = el("div", {class:"row"});
+  profiles.forEach(p=>{
+    tabRow.append(el("button", {class:"btn sm "+(RESULTS_PROFILE===p?"":"ghost"), onclick:()=>{ RESULTS_PROFILE = p; render(); }}, p));
+  });
+  tabCard.append(el("h3", null, "Profile"), tabRow);
+  wrap.append(tabCard);
+
+  if (!RESULTS_PROFILE){
+    wrap.append(el("div", {class:"card"}, el("p", {class:"muted"}, "No profiles defined yet.")));
+    return wrap;
+  }
+
+  const sessions = allSessions.filter(s=>s.profile===RESULTS_PROFILE);
+  const cfgTasks = tasksForProfile(RESULTS_PROFILE);
+  if (!sessions.length){
+    wrap.append(el("div", {class:"card"}, el("p", {class:"muted"}, "No sessions yet for " + RESULTS_PROFILE + ".")));
+    return wrap;
+  }
+
+  wrap.append(renderParticipantsCard(sessions));
+  wrap.append(renderTimePerTaskCards(sessions, cfgTasks));
+  wrap.append(renderHeatmapCards(sessions, cfgTasks));
+  wrap.append(renderPerTaskQuestionsCard(sessions, cfgTasks));
+  wrap.append(renderTamCard(sessions));
+  wrap.append(renderSusCard(sessions));
+  return wrap;
+}
+
+function renderParticipantsCard(sessions){
+  const pCard = el("div", {class:"card"});
+  pCard.append(el("h3", null, "Participants"));
+  const pTable = el("table");
+  pTable.append(el("tr", null, el("th",null,"Name"), el("th",null,"Age"), el("th",null,"Gender"), el("th",null,"Tasks done"), el("th",null,"Total time"), el("th",null,"")));
+  sessions.forEach(s=>{
+    const pt = s.participant || {};
+    const total = (s.taskResults||[]).reduce((a,r)=>a+(r.durationMs||0),0);
+    pTable.append(el("tr", null,
+      el("td",null, pt.name||"—"),
+      el("td",null, pt.age||"—"),
+      el("td",null, pt.gender||"—"),
+      el("td",null, (s.taskResults||[]).length),
+      el("td",null, fmtSec(total)),
+      el("td",null, el("button", {class:"btn sm ghost", onclick:()=>deleteSession(s)}, "Delete"))
+    ));
+  });
+  pCard.append(pTable);
+  return pCard;
+}
+
+function byTaskAgg(sessions){
+  const byTask = {};
+  sessions.forEach(s=>(s.taskResults||[]).forEach(r=>{
+    byTask[r.taskId] = byTask[r.taskId] || {title:r.title, durs:[], events:[]};
+    byTask[r.taskId].durs.push(r.durationMs);
+    byTask[r.taskId].events.push(...(r.events||[]));
+  }));
+  return byTask;
+}
+
+function renderTimePerTaskCards(sessions, cfgTasks){
+  const byTask = byTaskAgg(sessions);
+  const wrap = el("div");
+
+  const taskCard = el("div", {class:"card"});
+  taskCard.append(el("h3", null, "Time per task — average"));
+  const maxDur = Math.max(1, ...cfgTasks.map(t=> byTask[t.id] ? avg(byTask[t.id].durs) : 0));
+  cfgTasks.forEach(t=>{
+    const x = byTask[t.id];
+    taskCard.append(el("div", {class:"bar-row"},
+      el("div", {class:"name"}, t.title),
+      el("div", {class:"bar-track"}, el("div", {class:"bar-fill", style:`width:${x? (avg(x.durs)/maxDur*100) : 0}%`})),
+      el("div", null, x ? fmtSec(avg(x.durs)) : "—")
+    ));
+  });
+  wrap.append(taskCard);
+
+  const timeCard = el("div", {class:"card"});
+  timeCard.append(el("h3", null, "Time per task — by participant"));
+  const timeTable = el("table");
+  timeTable.append(el("tr", null, el("th",null,"Participant"), ...cfgTasks.map(t=>el("th",null,t.title))));
+  sessions.forEach(s=>{
+    const pt = s.participant||{};
+    const byTaskId = {}; (s.taskResults||[]).forEach(r=> byTaskId[r.taskId]=r);
+    timeTable.append(el("tr", null,
+      el("td",null, pt.name||"—"),
+      ...cfgTasks.map(t=> el("td",null, byTaskId[t.id]? fmtSec(byTaskId[t.id].durationMs) : "—"))
+    ));
+  });
+  timeTable.append(el("tr", {style:"font-weight:700"}, el("td",null,"Average"),
+    ...cfgTasks.map(t=>{ const agg=byTask[t.id]; return el("td",null, agg? fmtSec(avg(agg.durs)) : "—"); })));
+  timeCard.append(timeTable);
+  wrap.append(timeCard);
+  return wrap;
+}
+
+// heatmaps per task — for iframe-nav/iframe tasks, one heatmap PER SCREEN the task actually
+// visited (e.g. a task that moves from Dashboard to Tickets gets two separate heatmaps, each
+// overlaid on that screen's own backdrop, each showing only the clicks/moves that happened on it).
+// Each heatmap now shows only clicks as a density gradient; cursor movement is drawn as a trail of
+// small connected nodes on top, and every heatmap has its own "download" button that exports just
+// the canvas overlay (clicks + nodes), not the portal/screenshot behind it.
+function renderHeatmapCards(sessions, cfgTasks){
+  const byTask = byTaskAgg(sessions);
+  const wrap = el("div");
+  cfgTasks.forEach(t=>{
+    const agg = byTask[t.id];
+    const tc = el("div", {class:"card"});
+    tc.append(el("h3", null, t.title + " — heatmap"));
+    if (t.kind === "iframe" || t.kind === "iframe-nav"){
+      if (!agg){ tc.append(el("p",{class:"muted"},"No sessions for this task yet.")); wrap.append(tc); return; }
+      const screenOrder = [];
+      const byScreen = {};
+      agg.events.forEach(e=>{
+        const sid = e[6] || "unknown";
+        if (!byScreen[sid]){ byScreen[sid] = {label: e[7] || sid, events: []}; screenOrder.push(sid); }
+        byScreen[sid].events.push(e);
+      });
+      if (!screenOrder.length){ tc.append(el("p",{class:"muted"},"No sessions for this task yet.")); wrap.append(tc); return; }
+      screenOrder.forEach((sid, idx)=>{
+        const sAgg = byScreen[sid];
+        const clicks = sAgg.events.filter(e=>e[1]==="click");
+        const moves = sAgg.events.filter(e=>e[1]==="move");
+        const headStyle = "margin:14px 0 8px" + (idx>0 ? ";padding-top:14px;border-top:1px solid var(--border)" : "");
+        tc.append(el("div", {style:headStyle},
+          el("div", {style:"font-weight:700;margin-bottom:2px"}, "Screen: " + sAgg.label),
+          el("div",{class:"muted", style:"font-size:.72rem"},
+            clicks.length + " clicks, " + moves.length + " cursor samples on this screen. ",
+            heatmapLegend())
+        ));
+        tc.append(buildIframeHeatmap(t, sid, clicks, moves, sAgg.label));
+      });
+      wrap.append(tc); return;
+    }
+    if (!agg){ tc.append(el("p",{class:"muted"},"No sessions for this task yet.")); wrap.append(tc); return; }
+    (t.screens||[]).forEach(s=>{
+      const sClicks = agg.events.filter(e=>e[5]===s.id && (e[1]==="click"||e[1]==="dragend"));
+      const sMoves = agg.events.filter(e=>e[5]===s.id && e[1]==="move");
+      tc.append(el("div", {style:"margin-bottom:8px"}, el("div",{class:"muted"},
+        "Screen " + (t.screens.indexOf(s)+1) + " — " + sClicks.length + " clicks, " + sMoves.length + " cursor samples"),
+        el("div",{class:"muted", style:"font-size:.72rem"}, heatmapLegend())
+      ));
+      tc.append(buildHeatmap(t, s, sClicks, sMoves));
+    });
+    wrap.append(tc);
+  });
+  return wrap;
+}
+
+function renderPerTaskQuestionsCard(sessions, cfgTasks){
+  const qCard = el("div", {class:"card"});
+  qCard.append(el("h3", null, "Per-task questions"));
+  cfgTasks.forEach(t=>{
+    const matched = sessions.map(s=>({s, r:(s.taskResults||[]).find(r=>r.taskId===t.id)})).filter(x=>x.r);
+    const block = el("div", {style:"margin-bottom:22px"});
+    block.append(el("div", {style:"font-weight:700;margin-bottom:6px"}, t.title));
+    if (!matched.length){ block.append(el("p",{class:"muted"},"No responses yet.")); qCard.append(block); return; }
+    const pt = matched.map(x=>x.r.perTask||{});
+    const finCounts = {Yes:0,"Some of it":0,No:0};
+    pt.forEach(p=>{ if (p.finished!=null) finCounts[p.finished] = (finCounts[p.finished]||0)+1; });
+    block.append(el("div",{class:"row", style:"margin-bottom:6px"},
+      el("div",{class:"sh-chip"},"Finished: "+finCounts["Yes"]), el("div",{class:"sh-chip"},"Some: "+finCounts["Some of it"]), el("div",{class:"sh-chip"},"No: "+finCounts["No"])));
+    const easeVals = pt.map(p=>p.ease).filter(v=>v!=null);
+    const confVals = pt.map(p=>p.confidence).filter(v=>v!=null);
+    block.append(el("div",{class:"muted"}, "Average — ease: " + (easeVals.length?avg(easeVals).toFixed(1):"—") + " / 5   ·   confidence: " + (confVals.length?avg(confVals).toFixed(1):"—") + " / 5"));
+
+    const qt = el("table", {style:"margin-top:8px"});
+    qt.append(el("tr",null, el("th",null,"Participant"), el("th",null,"Finished?"), el("th",null,"Ease"), el("th",null,"Confidence"), el("th",null,"Confusing / notes")));
+    matched.forEach(({s,r})=>{
+      const p = r.perTask||{};
+      qt.append(el("tr",null,
+        el("td",null,(s.participant&&s.participant.name)||"—"),
+        el("td",null,p.finished||"—"), el("td",null,p.ease!=null?p.ease+"/5":"—"), el("td",null,p.confidence!=null?p.confidence+"/5":"—"),
+        el("td",null,p.confusing||"—")
+      ));
+    });
+    block.append(qt);
+    qCard.append(block);
+  });
+  return qCard;
+}
+
+function renderTamCard(sessions){
+  const tamCard = el("div", {class:"card"});
+  tamCard.append(el("h3", null, "Technology Acceptance (TAM) scores"));
+  const tamSessions = sessions.filter(s=>s.tamScores);
+  if (!tamSessions.length){
+    tamCard.append(el("p",{class:"muted"},"No completed TAM questionnaires yet."));
+    return tamCard;
+  }
+  const puVals = tamSessions.map(s=>s.tamScores.pu).filter(v=>v!=null);
+  const peouVals = tamSessions.map(s=>s.tamScores.peou).filter(v=>v!=null);
+  const ovVals = tamSessions.map(s=>s.tamScores.overall).filter(v=>v!=null);
+  const sg2 = el("div",{class:"statgrid"});
+  sg2.append(
+    statBox(puVals.length?avg(puVals).toFixed(1):"—", "Avg Perceived Usefulness (0-100)"),
+    statBox(peouVals.length?avg(peouVals).toFixed(1):"—", "Avg Perceived Ease of Use (0-100)"),
+    statBox(ovVals.length?avg(ovVals).toFixed(1):"—", "Avg Overall (0-100)")
+  );
+  tamCard.append(sg2);
+
+  const pTable3 = el("table", {style:"margin-top:14px"});
+  pTable3.append(el("tr",null, el("th",null,"Participant"), el("th",null,"PU"), el("th",null,"PEOU"), el("th",null,"Overall")));
+  tamSessions.forEach(s=>{
+    pTable3.append(el("tr",null,
+      el("td",null,(s.participant&&s.participant.name)||"—"),
+      el("td",null, s.tamScores.pu!=null?s.tamScores.pu.toFixed(1):"—"),
+      el("td",null, s.tamScores.peou!=null?s.tamScores.peou.toFixed(1):"—"),
+      el("td",null, s.tamScores.overall!=null?s.tamScores.overall.toFixed(1):"—")
+    ));
+  });
+  tamCard.append(el("h4",{style:"margin-top:14px"},"By participant"), pTable3);
+  return tamCard;
+}
+
+// SUS results as a horizontal bar graph: one bar per statement (y-axis), its average reverse-coded
+// score on a 0-100 scale (x-axis), with a dashed benchmark line at 68 (the commonly-cited "good
+// usability" cutoff for SUS) so each statement's bar can be read against it directly.
+function renderSusCard(sessions){
+  const susCard = el("div", {class:"card"});
+  susCard.append(el("h3", null, "System Usability Scale (SUS)"));
+  const susSessions = sessions.filter(s=>s.susScore!=null && s.susAnswers);
+  if (!susSessions.length){
+    susCard.append(el("p",{class:"muted"},"No completed SUS questionnaires yet."));
+    return susCard;
+  }
+  const susVals = susSessions.map(s=>s.susScore);
+  susCard.append(el("div",{class:"statgrid"}, statBox(avg(susVals).toFixed(1), "Avg SUS score (0-100)")));
+
+  const qAvgs = SUS_STATEMENTS.map(q=>{
+    const vals = susSessions.map(s=>{
+      const a = s.susAnswers[q.id];
+      if (a==null) return null;
+      const sc = q.positive ? (a-1) : (5-a); // 0-4, reverse-coded for negative statements
+      return sc * 25; // scale each statement to 0-100 so it's comparable to the 68 benchmark
+    }).filter(v=>v!=null);
+    return {q, score: vals.length ? avg(vals) : null};
+  });
+
+  const chart = el("div", {style:"margin-top:14px"});
+  chart.append(el("div",{class:"muted", style:"margin-bottom:10px"},
+    "Each bar is a statement's average score (0–100, after reverse-coding the negative ones). The dashed line marks the 68 benchmark."));
+  qAvgs.forEach(({q, score})=>{
+    const pct = score!=null ? Math.max(0, Math.min(100, score)) : 0;
+    chart.append(el("div", {class:"bar-row"},
+      el("div", {class:"name", style:"width:280px;white-space:normal;line-height:1.3", title:q.text}, "Q" + q.id + ". " + q.text),
+      el("div", {class:"bar-track", style:"position:relative;overflow:visible"},
+        el("div", {class:"bar-fill", style:`width:${pct}%`}),
+        el("div", {style:"position:absolute;top:-3px;bottom:-3px;left:68%;width:2px;background:var(--bad)"})
+      ),
+      el("div", {style:"width:36px;text-align:right"}, score!=null ? score.toFixed(0) : "—")
+    ));
+  });
+  susCard.append(chart);
+
+  const pTable = el("table", {style:"margin-top:16px"});
+  pTable.append(el("tr",null, el("th",null,"Participant"), el("th",null,"SUS score")));
+  susSessions.forEach(s=>{
+    pTable.append(el("tr",null, el("td",null,(s.participant&&s.participant.name)||"—"), el("td",null, s.susScore.toFixed(1))));
+  });
+  susCard.append(el("h4",{style:"margin-top:14px"},"By participant"), pTable);
+  return susCard;
+}
+
+function statBox(num, lbl){ return el("div", {class:"stat"}, el("div",{class:"num"},num), el("div",{class:"lbl"},lbl)); }
+
+// Density colormap used for the click heatmap only: green = few clicks, through yellow, to red =
+// many clicks at that spot. t is 0..1 (this heatmap's own local density, normalized against its own
+// hottest spot).
+function densityColor(t){
+  const stops = [[86,196,120],[240,200,70],[224,70,60]]; // green -> yellow -> red
+  const seg = t < 0.5 ? 0 : 1;
+  const localT = t < 0.5 ? t*2 : (t-0.5)*2;
+  const a = stops[seg], b = stops[seg+1];
+  return [
+    Math.round(a[0]+(b[0]-a[0])*localT),
+    Math.round(a[1]+(b[1]-a[1])*localT),
+    Math.round(a[2]+(b[2]-a[2])*localT)
+  ];
+}
+
+// Paints the click-density heatmap onto an already-sized 2D context — additive radial gradients per
+// click, normalized against this heatmap's own hottest spot, then recolored green→yellow→red.
+function paintClickDensity(ctx, w, h, points, radius){
+  if (!points.length) return;
+  const density = document.createElement("canvas");
+  density.width = w; density.height = h;
+  const dctx = density.getContext("2d");
+  dctx.globalCompositeOperation = "lighter";
+  points.forEach(p=>{
+    const x = p[0]*w, y = p[1]*h;
+    const grad = dctx.createRadialGradient(x,y,0,x,y,radius);
+    grad.addColorStop(0, "rgba(255,255,255,.35)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    dctx.fillStyle = grad;
+    dctx.beginPath(); dctx.arc(x,y,radius,0,Math.PI*2); dctx.fill();
+  });
+  const imgData = dctx.getImageData(0,0,w,h);
+  const data = imgData.data;
+  let max = 1;
+  for (let i=3;i<data.length;i+=4) if (data[i] > max) max = data[i];
+  for (let i=0;i<data.length;i+=4){
+    const a = data[i+3];
+    if (!a) continue;
+    const t = Math.min(1, a/max);
+    const [r,g,b] = densityColor(t);
+    data[i]=r; data[i+1]=g; data[i+2]=b;
+    data[i+3] = Math.round(Math.min(220, 60 + t*160)); // visible even at low density, stronger at high
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// Draws cursor movement as a trail of small connected nodes (a thin path line through every sampled
+// point, plus a dot at each one) rather than folding it into the click density — distinct, readable,
+// and keeps the click heatmap purely about clicks.
+function paintMoveNodes(ctx, w, h, points){
+  if (!points.length) return;
+  ctx.save();
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = "rgba(47,91,196,.5)";
+  ctx.beginPath();
+  points.forEach((p,i)=>{
+    const x = p[0]*w, y = p[1]*h;
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  points.forEach(p=>{
+    const x = p[0]*w, y = p[1]*h;
+    ctx.beginPath();
+    ctx.fillStyle = "rgba(47,91,196,.85)";
+    ctx.arc(x,y,3.5,0,Math.PI*2);
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,.9)";
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+function drawHeatmapAndNodes(canvas, w, h, clickPts, movePts, radius){
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0,0,w,h);
+  paintClickDensity(ctx, w, h, clickPts, radius);
+  paintMoveNodes(ctx, w, h, movePts);
+}
+
+// Legend covering both layers: the click-density gradient, and the cursor-movement node/trail style.
+function heatmapLegend(){
+  return el("span", {style:"display:inline-flex;align-items:center;gap:14px;flex-wrap:wrap;vertical-align:middle"},
+    el("span", {style:"display:inline-flex;align-items:center;gap:6px"},
+      el("span", {style:"display:inline-block;width:70px;height:10px;border-radius:5px;" +
+        "background:linear-gradient(90deg, rgb(86,196,120), rgb(240,200,70), rgb(224,70,60));vertical-align:middle"}),
+      el("span", null, "low → high click density")),
+    el("span", {style:"display:inline-flex;align-items:center;gap:6px"},
+      el("span", {style:"display:inline-block;width:9px;height:9px;border-radius:50%;background:rgba(47,91,196,.85);border:1px solid #fff"}),
+      el("span", null, "cursor movement (nodes)")));
+}
+
+function clickPoints(clicks){ return (clicks||[]).map(e=>[e[2]/1000, e[3]/1000]); }
+function movePoints(moves){ return (moves||[]).map(e=>[e[2]/1000, e[3]/1000]); }
+
+function slugify(s){ return (String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")) || "heatmap"; }
+
+// Exports ONLY the canvas overlay (the click heatmap + movement nodes) as a PNG — never the
+// screenshot/portal backdrop behind it, since the canvas itself has a transparent background and
+// nothing else is drawn onto it.
+function downloadCanvasPng(canvas, filename){
+  if (!canvas || !canvas.toBlob){ toast("Couldn't export this heatmap."); return; }
+  canvas.toBlob(function(blob){
+    if (!blob){ toast("Couldn't export this heatmap."); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ try{ document.body.removeChild(a); URL.revokeObjectURL(url); }catch(e){} }, 1000);
+  }, "image/png");
+}
+
+// Builds a same-size OFFSCREEN canvas holding just one layer (clicks-only or moves-only), reading
+// the on-screen canvas's current size so the export lines up with what's displayed, then downloads
+// it — so "Download heatmap" and "Download node map" are two independent PNGs, never the combined view.
+function downloadHeatmapLayer(mainCanvas, which, clickPts, movePts, radius, filename){
+  const w = mainCanvas.width, h = mainCanvas.height;
+  if (!w || !h){ toast("Give it a moment to finish rendering, then try again."); return; }
+  const off = document.createElement("canvas");
+  off.width = w; off.height = h;
+  const ctx = off.getContext("2d");
+  if (which === "clicks") paintClickDensity(ctx, w, h, clickPts, radius);
+  else paintMoveNodes(ctx, w, h, movePts);
+  downloadCanvasPng(off, filename);
+}
+
+function addHeatmapDownloadBtn(container, canvas, clickPts, movePts, radius, filenameBase){
+  container.append(
+    el("div", {style:"position:absolute;top:8px;right:8px;z-index:3;display:flex;flex-direction:column;gap:6px;align-items:flex-end"},
+      el("button", {class:"btn sm ghost",
+        onclick:()=>downloadHeatmapLayer(canvas, "clicks", clickPts, movePts, radius, filenameBase+"-heatmap.png")}, "⬇ Download heatmap"),
+      el("button", {class:"btn sm ghost",
+        onclick:()=>downloadHeatmapLayer(canvas, "moves", clickPts, movePts, radius, filenameBase+"-nodemap.png")}, "⬇ Download node map")));
+}
+
+function buildHeatmap(task, screen, clicks, moves){
+  const holder = el("div", {class:"stage-img-wrap", style:"max-height:380px"});
+  const img = el("img", {src:screen.url});
+  const canvas = el("canvas", {style:"position:absolute;inset:0;width:100%;height:100%;pointer-events:none"});
+  holder.append(img, canvas);
+  const clickPts = clickPoints(clicks), movePts = movePoints(moves);
+  img.onload = ()=>{
+    drawHeatmapAndNodes(canvas, img.naturalWidth, img.naturalHeight, clickPts, movePts, 24);
+  };
+  addHeatmapDownloadBtn(holder, canvas, clickPts, movePts, 24, slugify(task.title + "-" + (screen.id||"screen")));
+  return holder;
+}
+
+function buildIframeHeatmap(task, screenId, clicks, moves, screenLabel){
+  // a fresh, read-only load of the task's own portal (no tracking), flipped to the specific screen
+  // these events happened on, as the backdrop — then overlay a canvas and plot the normalized
+  // click/move coordinates captured during real sessions for that screen only.
+  const screen = renderIframeTask(task, true, screenId); // a .iframe-outer, position:relative
+  const canvas = el("canvas", {style:"position:absolute;inset:0;width:100%;height:100%;pointer-events:none"});
+  screen.append(canvas);
+  const clickPts = clickPoints(clicks), movePts = movePoints(moves);
+  const draw = ()=>{
+    const r = screen.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    drawHeatmapAndNodes(canvas, r.width, r.height, clickPts, movePts, 24);
+  };
+  // extra delay vs. the plain (no goToScreen) case, so the portal's own view-switch has settled
+  // before the canvas is sized/drawn against it
+  requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(draw, 160)));
+  addHeatmapDownloadBtn(screen, canvas, clickPts, movePts, 24, slugify(task.title + "-" + (screenLabel||screenId)));
+  return screen;
+}
+
+function exportCsv(sessions){
+  const rows = [["session_id","name","age","gender","profile","task","duration_s","completed",
+    "finished","ease_1to5","confidence_1to5","confusing_notes","tam_pu","tam_peou","tam_overall","sus_score"]];
+  sessions.forEach(s=>{
+    const pt = s.participant || {};
+    const ts = s.tamScores || {};
+    (s.taskResults||[]).forEach(r=>{
+      const perTask = r.perTask || {};
+      rows.push([s.id, pt.name||"", pt.age||"", pt.gender||"", s.profile, r.title, (r.durationMs/1000).toFixed(1), r.completed?"yes":"no",
+        perTask.finished||"", perTask.ease!=null?perTask.ease:"", perTask.confidence!=null?perTask.confidence:"", perTask.confusing||"",
+        ts.pu!=null?ts.pu.toFixed(1):"", ts.peou!=null?ts.peou.toFixed(1):"", ts.overall!=null?ts.overall.toFixed(1):"",
+        s.susScore!=null?s.susScore.toFixed(1):""]);
+    });
+  });
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const filename = "smart-seva-results.csv";
+  if (DOWNLOADS){
+    DOWNLOADS.save({filename, data: csv}).then(()=>toast("Exported.")).catch(()=>{
+      if (!downloadFileLocally(filename, csv, "text/csv")) toast("Export failed.");
+      else toast("Exported.");
+    });
+    return;
+  }
+  if (downloadFileLocally(filename, csv, "text/csv")) toast("Exported.");
+  else toast("Export failed.");
+}
+
+let importedSessions = [];
+function renderImportBox(rootWrap){
+  const box = el("div", {class:"notice"});
+  box.append(el("div", null, "If a participant couldn't save live (they weren't signed in), paste or upload the JSON file they sent you:"),
+    el("div", {class:"row", style:"margin-top:8px"},
+      (()=>{ const f = el("input",{type:"file", accept:".json"}); f.onchange = async e=>{
+          const file = e.target.files[0]; if(!file) return;
+          try{ const txt = await file.text(); importOne(JSON.parse(txt), rootWrap); }catch(err){ toast("Couldn't read that file."); }
+        }; return f; })(),
+      el("button", {class:"btn sm ghost", onclick:()=>{
+        const txt = prompt("Paste the results JSON:");
+        if (txt){ try{ importOne(JSON.parse(txt), rootWrap); }catch(e){ toast("That wasn't valid JSON."); } }
+      }}, "Paste JSON instead")
+    ));
+  return box;
+}
+async function importOne(payload, rootWrap){
+  payload.imported = true;
+  if (DB){
+    try{ await DB.doc("sessions/"+(payload.id||uid())).set(payload); toast("Imported and saved."); render(); return; }
+    catch(e){ /* fall through to local-only */ }
+  }
+  importedSessions.push(payload);
+  toast("Imported for this view (couldn't save live).");
+  render();
+}
+
+/* ================= BOOT ================= */
+async function boot(){
+  await initCapabilities();
+  await loadConfig();
+  await render();
+}
+boot();
+})();
+</script>
+
+</body></html>
